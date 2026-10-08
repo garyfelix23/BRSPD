@@ -1,0 +1,330 @@
+With CTE AS
+      (
+      SELECT
+
+      MAP.process_code as process_code,
+
+       Period_Year,
+
+      CASE
+          WHEN SUBSTR(period_Year, 2, 2) = '01' THEN 'January'
+          WHEN SUBSTR(period_Year, 2, 2) = '02' THEN 'February'
+          WHEN SUBSTR(period_Year, 2, 2) = '03' THEN 'March'
+          WHEN SUBSTR(period_Year, 2, 2) = '04' THEN 'April'
+          WHEN SUBSTR(period_Year, 2, 2) = '05' THEN 'May'
+          WHEN SUBSTR(period_Year, 2, 2) = '06' THEN 'June'
+          WHEN SUBSTR(period_Year, 2, 2) = '07' THEN 'July'
+          WHEN SUBSTR(period_Year, 2, 2) = '08' THEN 'August'
+          WHEN SUBSTR(period_Year, 2, 2) = '09' THEN 'September'
+          WHEN SUBSTR(period_Year, 2, 2) = '10' THEN 'October'
+          WHEN SUBSTR(period_Year, 2, 2) = '11' THEN 'November'
+          WHEN SUBSTR(period_Year, 2, 2) = '12' THEN 'December'
+          ELSE 'Invalid Month'
+        END AS Month,
+
+        Source_Doc__System,
+
+       REVNU_DETL.Company_Code,
+
+       CC.SRC_COMPANY_CD,
+
+       BA.DW_SOURCE_SYSTEM_CD,
+
+      --  REVNU_DETL.GL_CUST_TYPE_CD,
+
+       REVNU_DETL.account_number,
+
+       REVNU_DETL.Business_Area,
+
+       CUST_ACCT.CRNT_CUST_ACCT_SUB_TYPE_CD,
+
+       CUST_ACCT.CUST_FULL_NM,
+
+       state,
+
+        round(sum(Amount_in_Transaction_Currency)) as trans_Amount
+
+      FROM `da-prod-rpt-finance.BRSPD_SAP_S4HANA.V_ACDOCA_SLT` REVNU_DETL
+
+       left join `da-prod-dwh-dw01.AV_CODS.BILLING_ACCOUNT_AV` BA on cast(REVNU_DETL.account_number as STRING) = BA.BILL_ACCOUNT_NBR
+
+       left join `da-prod-dwh-dw01.AV_CTLQWEST.CUST_ACCT_DIM_MV_AV` CUST_ACCT
+
+       on BA.BILL_ACCOUNT_NBR||'-'||BA.DW_SOURCE_SYSTEM_CD=CUST_ACCT.FINANCE_ACCOUNT_NBR
+
+       left join da-prod-rpt-finance.BRSPD_DSL_CODS_TRANSLATE.V_MAPPING_COMPANY_CODE CC
+
+       on Company_Code = CC.BSPD_COMPANY_CD
+
+        left join da-prod-rpt-finance.REGULATORY_REPORTING.BRSPD_GL_PCODE_MAP_LKP MAP
+
+       on MAP.gl_account  = REVNU_DETL.account_number
+
+      WHERE
+
+       (
+
+        LTRIM(Period_Year,"0") IN
+        (
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 11 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 10 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 9 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 7 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', CURRENT_DATE()),"0")
+        )
+
+       and Company_Code not in ('E173','C161','C020','C153','C154','C180','C030','C152','C157','C156','C800','C040','C010','T161')  -- security companies, not a part of reporting
+
+       and REVNU_DETL.Company_Code in (select BSPD_COMPANY_CD from da-prod-rpt-finance.BRSPD_DSL_CODS_TRANSLATE.V_MAPPING_COMPANY_CODE
+
+       where (SRC_COMPANY_CD IN ('S080', 'S855','S856','S857','S858','S859','S860','S861','S862','S864','S868','S869','S870','S871','S872','S873','S887','S888', 'T032','T033','T039','T042','T044','T061',
+
+       'T065','T069','T070','T072','T073','T087','T093','T094','T095','T098','T100','T105','T106','T108','T111','T119','T120','T125','T127','T137','T156','T157','T158','T159','T160','T161','T162','T163',
+
+       'T801','T802','T804','T805','T807','T820','T821','T822','T823','T824','T855','T856','T857','T858','T859','T860','T861','T862','T864','T868','T869','T870','T871','T872','T873','T887','T888' ,'T049','T056','T085','T090','T091','T109','T806','S865','T865','S867','T867'  )
+
+       ))
+
+      and process_Code in ('5001','5001A','5040','5040A','5050','5050A','5060','5060A','50801','5081','50811','50812','50812A','5081A','5082','5083','5083A','50841','50843','50843A','50844','50844A','50845','50846','50848','5100','51001','51002','51002A','5100A','5120','5124','5124A','5160','5160A','5200','5210','5230','52309','5230A','52402','52404','52405','52405A','52406','52407','52409','52428','5250','5261','52620','5263','5264','52642','52643','52644','5269','5270','5280','52801','52802','52803','52804','5300','9999','MPLS','MPLSA','VOIP','VOIPA','52645','DIA')
+
+      --  )
+
+        )
+
+      GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
+
+
+
+      union all
+
+
+
+      SELECT                               -- manual entries
+
+      MAP.process_code as process_code,
+
+       Period_Year,
+
+      CASE
+          WHEN SUBSTR(period_Year, 2, 2) = '01' THEN 'January'
+          WHEN SUBSTR(period_Year, 2, 2) = '02' THEN 'February'
+          WHEN SUBSTR(period_Year, 2, 2) = '03' THEN 'March'
+          WHEN SUBSTR(period_Year, 2, 2) = '04' THEN 'April'
+          WHEN SUBSTR(period_Year, 2, 2) = '05' THEN 'May'
+          WHEN SUBSTR(period_Year, 2, 2) = '06' THEN 'June'
+          WHEN SUBSTR(period_Year, 2, 2) = '07' THEN 'July'
+          WHEN SUBSTR(period_Year, 2, 2) = '08' THEN 'August'
+          WHEN SUBSTR(period_Year, 2, 2) = '09' THEN 'September'
+          WHEN SUBSTR(period_Year, 2, 2) = '10' THEN 'October'
+          WHEN SUBSTR(period_Year, 2, 2) = '11' THEN 'November'
+          WHEN SUBSTR(period_Year, 2, 2) = '12' THEN 'December'
+          ELSE 'Invalid Month'
+        END AS Month,
+
+        Source_Doc__System,
+
+       REVNU_DETL.Company_Code,
+
+       CC.SRC_COMPANY_CD,
+
+       BA.DW_SOURCE_SYSTEM_CD,
+
+      --  REVNU_DETL.GL_CUST_TYPE_CD,
+
+       REVNU_DETL.account_number,
+
+       REVNU_DETL.Business_Area,
+
+       CUST_ACCT.CRNT_CUST_ACCT_SUB_TYPE_CD,
+
+       CUST_ACCT.CUST_FULL_NM,
+
+       state,
+
+        round(sum(Amount_in_Transaction_Currency)) as trans_Amount
+
+      FROM `da-prod-rpt-finance.BRSPD_SAP_S4HANA.V_ACDOCA_SLT` REVNU_DETL
+
+       left join `da-prod-dwh-dw01.AV_CODS.BILLING_ACCOUNT_AV` BA on cast(REVNU_DETL.account_number as STRING) = BA.BILL_ACCOUNT_NBR
+
+       left join `da-prod-dwh-dw01.AV_CTLQWEST.CUST_ACCT_DIM_MV_AV` CUST_ACCT
+
+       on BA.BILL_ACCOUNT_NBR||'-'||BA.DW_SOURCE_SYSTEM_CD=CUST_ACCT.FINANCE_ACCOUNT_NBR
+
+       left join da-prod-rpt-finance.BRSPD_DSL_CODS_TRANSLATE.V_MAPPING_COMPANY_CODE CC
+
+       on Company_Code = CC.BSPD_COMPANY_CD
+
+        left join da-prod-rpt-finance.REGULATORY_REPORTING.BRSPD_GL_PCODE_MAP_LKP MAP
+
+       on MAP.gl_account  = REVNU_DETL.account_number
+
+      WHERE
+
+       (
+
+        LTRIM(Period_Year,"0") IN
+        (
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 11 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 10 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 9 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 7 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', CURRENT_DATE()),"0")
+        )
+
+       and Company_Code not in ('E173','C161','C020','C153','C154','C180','C030','C152','C157','C156','C800','C040','C010','T161')  -- security companies, not a part of reporting
+
+
+
+       and REVNU_DETL.Company_Code in (select BSPD_COMPANY_CD from da-prod-rpt-finance.BRSPD_DSL_CODS_TRANSLATE.V_MAPPING_COMPANY_CODE
+
+       where (SRC_COMPANY_CD IN ('S080', 'S855','S856','S857','S858','S859','S860','S861','S862','S864','S868','S869','S870','S871','S872','S873','S887','S888', 'T032','T033','T039','T042','T044','T061',
+
+       'T065','T069','T070','T072','T073','T087','T093','T094','T095','T098','T100','T105','T106','T108','T111','T119','T120','T125','T127','T137','T156','T157','T158','T159','T160','T161','T162','T163',
+
+       'T801','T802','T804','T805','T807','T820','T821','T822','T823','T824','T855','T856','T857','T858','T859','T860','T861','T862','T864','T868','T869','T870','T871','T872','T873','T887','T888' ,'T049','T056','T085','T090','T091','T109','T806','S865','T865','S867','T867'  )
+
+       )   )
+
+      and process_Code in ('5001','5001A','5040','5040A','5050','5050A','5060','5060A','50801','5081','50811','50812','50812A','5081A','5082','5083','5083A','50841','50843','50843A','50844','50844A','50845','50846','50848','5100','51001','51002','51002A','5100A','5120','5124','5124A','5160','5160A','5200','5210','5230','52309','5230A','52402','52404','52405','52405A','52406','52407','52409','52428','5250','5261','52620','5263','5264','52642','52643','52644','5269','5270','5280','52801','52802','52803','52804','5300','9999','MPLS','MPLSA','VOIP','VOIPA','52645','DIA')
+
+       and Document_Type in ('SA','AB','SR','CA')  -- manual entries
+
+       and (account_number between 40000000 and 42999999)
+
+      --  )
+
+        )
+
+      GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
+
+      union all
+
+      SELECT                               -- B100 pull
+
+      MAP.process_code as process_code,
+
+       Period_Year,
+
+      CASE
+          WHEN SUBSTR(period_Year, 2, 2) = '01' THEN 'January'
+          WHEN SUBSTR(period_Year, 2, 2) = '02' THEN 'February'
+          WHEN SUBSTR(period_Year, 2, 2) = '03' THEN 'March'
+          WHEN SUBSTR(period_Year, 2, 2) = '04' THEN 'April'
+          WHEN SUBSTR(period_Year, 2, 2) = '05' THEN 'May'
+          WHEN SUBSTR(period_Year, 2, 2) = '06' THEN 'June'
+          WHEN SUBSTR(period_Year, 2, 2) = '07' THEN 'July'
+          WHEN SUBSTR(period_Year, 2, 2) = '08' THEN 'August'
+          WHEN SUBSTR(period_Year, 2, 2) = '09' THEN 'September'
+          WHEN SUBSTR(period_Year, 2, 2) = '10' THEN 'October'
+          WHEN SUBSTR(period_Year, 2, 2) = '11' THEN 'November'
+          WHEN SUBSTR(period_Year, 2, 2) = '12' THEN 'December'
+          ELSE 'Invalid Month'
+        END AS Month,
+
+        Source_Doc__System,
+
+       REVNU_DETL.Company_Code,
+
+       CC.SRC_COMPANY_CD,
+
+       BA.DW_SOURCE_SYSTEM_CD,
+
+      --  REVNU_DETL.GL_CUST_TYPE_CD,
+
+       REVNU_DETL.account_number,
+
+       REVNU_DETL.Business_Area,
+
+       CUST_ACCT.CRNT_CUST_ACCT_SUB_TYPE_CD,
+
+       CUST_ACCT.CUST_FULL_NM,
+
+       state,
+
+        round(sum(Amount_in_Transaction_Currency)) as trans_Amount
+
+      FROM `da-prod-rpt-finance.BRSPD_SAP_S4HANA.V_ACDOCA_SLT` REVNU_DETL
+
+       left join `da-prod-dwh-dw01.AV_CODS.BILLING_ACCOUNT_AV` BA on cast(REVNU_DETL.account_number as STRING) = BA.BILL_ACCOUNT_NBR
+
+       left join `da-prod-dwh-dw01.AV_CTLQWEST.CUST_ACCT_DIM_MV_AV` CUST_ACCT
+
+       on BA.BILL_ACCOUNT_NBR||'-'||BA.DW_SOURCE_SYSTEM_CD=CUST_ACCT.FINANCE_ACCOUNT_NBR
+
+       left join da-prod-rpt-finance.BRSPD_DSL_CODS_TRANSLATE.V_MAPPING_COMPANY_CODE CC
+
+       on Company_Code = CC.BSPD_COMPANY_CD
+
+        left join da-prod-rpt-finance.REGULATORY_REPORTING.BRSPD_GL_PCODE_MAP_LKP MAP
+
+       on MAP.gl_account  = REVNU_DETL.account_number
+
+      WHERE
+
+       (
+
+        LTRIM(Period_Year,"0") IN
+        (
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 11 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 10 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 9 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 7 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),"0"),
+        LTRIM(FORMAT_DATE('%m/%Y', CURRENT_DATE()),"0")
+        )
+
+      and REVNU_DETL.Company_Code in ('B100')
+
+      and process_Code in ('5001','5001A','5040','5040A','5050','5050A','5060','5060A','50801','5081','50811','50812','50812A','5081A','5082','5083','5083A','50841','50843','50843A','50844','50844A','50845','50846','50848','5100','51001','51002','51002A','5100A','5120','5124','5124A','5160','5160A','5200','5210','5230','52309','5230A','52402','52404','52405','52405A','52406','52407','52409','52428','5250','5261','52620','5263','5264','52642','52643','52644','5269','5270','5280','52801','52802','52803','52804','5300','9999','MPLS','MPLSA','VOIP','VOIPA','52645','DIA')
+
+      and (account_number between 40000000 and 42999999)
+
+        )
+
+      GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
+      )
+
+      select
+      Month,
+      CONCAT(
+   CASE
+    WHEN Month IN ('January', 'February', 'March') THEN 'Q1'
+    WHEN Month IN ('April', 'May', 'June') THEN 'Q2'
+    WHEN Month IN ('July', 'August', 'September') THEN 'Q3'
+    WHEN Month IN ('October', 'November', 'December') THEN 'Q4'
+      ELSE 'Invalid'
+    END, '-', SPLIT(period_year, '/')[OFFSET(1)]
+  ) AS quarter,
+
+       company_code AS T_co,
+
+       account_number,
+
+       SUM(trans_Amount*-1) AS AMOUNT
+
+       from CTE
+
+      group by 1,2,3,4
+
+      having AMOUNT <> 0 ;
